@@ -687,10 +687,7 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const errorMessage = document.getElementById('errorMessage');
 
-            // --- API Configuration (move to environment variables for production) ---
-            const API_KEY = "AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA"; // <<< IMPORTANT: Replace with your actual API key
-            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${API_KEY}`;
-
+          
             let chatHistory = [
                 { role: "user", parts: [{ text: "Hello, I want to learn Spanish." }] },
                 { role: "model", parts: [{ text: "Hola! I'm your AI Language Tutor. I can help you learn Spanish. Ready to start with some basic greetings?" }] },
