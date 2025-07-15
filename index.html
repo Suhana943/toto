@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Base Styles & Variables (re-using from your Educom CSS for consistency) */
+        /* Base Styles & Variables */
         :root {
             --primary-blue: #1691fd;
             --secondary-yellow: #ebab0c;
@@ -273,7 +273,6 @@
             <button class="close-tutor-btn" aria-label="Close tutor"><i class="fas fa-times"></i></button>
         </div>
         <div class="chat-display" id="chatDisplay">
-            <!-- Initial messages from the bot -->
             <div class="message bot-message">Hola! I'm your AI Language Tutor. I can help you learn Spanish. Ready to start with some basic greetings?</div>
             <div class="message bot-message">Try saying "Hello" in Spanish!</div>
         </div>
@@ -287,14 +286,23 @@
         </div>
         <p id="errorMessage" class="error-message" style="display: none;"></p>
     </div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
             const chatDisplay = document.getElementById('chatDisplay');
             const userInput = document.getElementById('userInput');
             const sendBtn = document.getElementById('sendBtn');
             const loadingIndicator = document.getElementById('loadingIndicator');
             const errorMessage = document.getElementById('errorMessage');
-            const closeTutorBtn = document.querySelector('.close-tutor-btn'); // Assuming a close button exists in your HTML
+            const closeTutorBtn = document.querySelector('.close-tutor-btn');
+
+            // --- API Configuration (move to environment variables for production) ---
+            // For a production app, never expose API keys directly in client-side code.
+            // Use a backend proxy to handle API requests securely.
+            // For this demonstration, we'll keep it here as per your original request,
+            // but strongly advise moving it server-side for real applications.
+            const API_KEY = "AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA"; // <<< IMPORTANT: Replace with your actual API key
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA}`; // Using gemini-pro
 
             // Initial chat history for the AI model
             // This helps the AI maintain context throughout the conversation.
@@ -308,16 +316,23 @@ document.addEventListener('DOMContentLoaded', () => {
             // Simple state to guide the lesson flow (for hackathon demo purposes)
             let lessonStage = 0; // 0: Greetings, 1: Asking how are you, 2: Introducing oneself
 
-            // Function to add a message to the chat display
+            /**
+             * Adds a message to the chat display.
+             * @param {string} text - The message content.
+             * @param {string} sender - 'user' or 'bot'.
+             */
             function addMessage(text, sender) {
                 const messageDiv = document.createElement('div');
-                messageDiv.classList.add('message', ${sender}-message);
+                messageDiv.classList.add('message', `${sender}-message`);
                 messageDiv.textContent = text;
                 chatDisplay.appendChild(messageDiv);
                 chatDisplay.scrollTop = chatDisplay.scrollHeight; // Auto-scroll to bottom
             }
 
-            // Function to speak text using Web Speech API
+            /**
+             * Speaks text aloud using Web Speech API.
+             * @param {string} text - The text to speak.
+             */
             function speakText(text) {
                 if ('speechSynthesis' in window) {
                     const utterance = new SpeechSynthesisUtterance(text);
@@ -328,25 +343,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Function to send message to AI and get response
+            /**
+             * Sends a message to the AI and processes the response.
+             * @param {string} userMessage - The user's input to send to the AI.
+             */
             async function sendToAI(userMessage) {
                 errorMessage.style.display = 'none'; // Hide any previous errors
                 loadingIndicator.style.display = 'flex'; // Show loading indicator
 
                 // Add user message to chat history
+                // Note: The `promptForAI` is what gets added as the "user" role to the chatHistory,
+                // not the raw `userText` from the input field, to guide the AI better.
                 chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
 
                 try {
-                    const payload = { contents: chatHistory };
-                    // IMPORTANT: Leave apiKey as an empty string. Canvas will automatically provide it.
-                    const apiKey = "AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA";
-                     // Replace them with your actual keys and endpoints.
- 
-        
-        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/chat-bison-001:generateMessage?key=AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA";
-    
+                    const payload = {
+                        contents: chatHistory,
+                        // Add generation configurations if needed, e.g., temperature, topP, topK
+                        generationConfig: {
+                            temperature: 0.7, // A bit creative but not too wild
+                            maxOutputTokens: 200, // Limit response length
+                        },
+                        safetySettings: [
+                            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+                        ],
+                    };
 
-                    const response = await fetch(apiUrl, {
+                    const response = await fetch(API_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -354,11 +380,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (!response.ok) {
                         const errorData = await response.json();
-                        throw new Error(API error: ${response.status} - ${errorData.error.message || 'Unknown error'});
+                        throw new Error(`API error: ${response.status} - ${errorData.error.message || 'Unknown error'}`);
                     }
 
                     const result = await response.json();
 
+                    // Check for candidates and text content based on Gemini API response structure
                     if (result.candidates && result.candidates.length > 0 &&
                         result.candidates[0].content && result.candidates[0].content.parts &&
                         result.candidates[0].content.parts.length > 0) {
@@ -366,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         addMessage(aiResponse, 'bot');
                         speakText(aiResponse);
                         chatHistory.push({ role: "model", parts: [{ text: aiResponse }] });
-                        return aiResponse; // Return AI response for further processing if needed
+                        return aiResponse;
                     } else {
                         const noResponseMsg = 'The AI did not generate a response. Please try rephrasing your question.';
                         addMessage(noResponseMsg, 'bot');
@@ -377,7 +404,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 } catch (error) {
                     console.error('Error sending message to AI:', error);
-                    const errorMsg = Sorry, I encountered an error: ${error.message}. Please try again.;
+                    const errorMsg = `Sorry, I encountered an error: ${error.message}. Please try again.`;
                     errorMessage.textContent = errorMsg;
                     errorMessage.style.display = 'block';
                     addMessage(errorMsg, 'bot');
@@ -388,7 +415,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Function to handle user input and trigger AI response
+            /**
+             * Handles user input, determines the AI's prompt, and sends it.
+             */
             async function handleUserInput() {
                 const userText = userInput.value.trim();
                 if (userText === "") {
@@ -398,59 +427,67 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMessage(userText, 'user');
                 userInput.value = ''; // Clear input field
 
-                // Simple adaptive logic based on lessonStage and user input
-                let promptForAI = "";
+                let promptForAI = ""; // This will be the specific instruction for the AI
 
-                if (lessonStage === 0) { // Greetings lesson
-                    if (userText.toLowerCase().includes('hola')) {
-                        promptForAI = The user said "${userText}". They correctly said 'Hola'. Praise them and then introduce 'Buenos días' (Good morning) and 'Buenas noches' (Good night). Ask them to say 'Good morning' in Spanish.;
-                        lessonStage = 1;
-                    } else {
-                        promptForAI = The user said "${userText}". They made a mistake trying to say 'Hello' in Spanish. Remind them that 'Hello' is 'Hola' and ask them to try again.;
-                    }
-                } else if (lessonStage === 1) { // Buenos días/Buenas noches lesson
-                    if (userText.toLowerCase().includes('c')) {
-                        promptForAI = The user said "${userText}". They correctly said 'Buenos días'. Praise them and then introduce '¿Cómo estás?' (How are you?) and 'Estoy bien' (I am fine). Ask them '¿Cómo estás?' and expect 'Estoy bien' as a response.;
-                        lessonStage = 2;
-                    } else if (userText.toLowerCase().includes('buenas noches')) {
-                         promptForAI = The user said "${userText}". They said 'Buenas noches'. Correct them gently that we were practicing 'Buenos días' and ask them to try 'Buenos días' again.;
-                    }
-                    else {
-                        promptForAI = The user said "${userText}". They made a mistake trying to say 'Good morning' in Spanish. Remind them that 'Good morning' is 'Buenos días' and ask them to try again.;
-                    }
-                } else if (lessonStage === 2) { // ¿Cómo estás? / Estoy bien lesson
-                    if (userText.toLowerCase().includes('estoy bien')) {
-                        promptForAI = The user said "${userText}". They correctly said 'Estoy bien'. Praise them and suggest we move on to introductions. Ask them to say "My name is [their name]" in Spanish. Give them a hint: "My name is" is "Me llamo".;
-                        lessonStage = 3;
-                    } else {
-                        promptForAI = The user said "${userText}". They made a mistake trying to say 'I am fine' in Spanish. Remind them that 'I am fine' is 'Estoy bien' and ask them '¿Cómo estás?' again.;
-                    }
-                } else if (lessonStage === 3) { // Me llamo lesson
-                    if (userText.toLowerCase().includes('me llamo')) {
-                        promptForAI = The user said "${userText}". They correctly introduced themselves. Praise them for their progress. Offer to review previous lessons or introduce a new topic like "ordering food".;
-                        lessonStage = 4; // End of this simple flow
-                    } else {
-                        promptForAI = The user said "${userText}". They made a mistake trying to introduce themselves. Remind them that "My name is" is "Me llamo" and ask them to try again.;
-                    }
-                }
-                else { // General conversation or review
-                    promptForAI = The user said "${userText}". Continue the conversation naturally in Spanish or English, providing helpful language learning feedback. If they ask for a new topic, suggest "ordering food" or "asking for directions".;
+                // More sophisticated lesson logic
+                switch (lessonStage) {
+                    case 0: // Greetings lesson: learning "Hola"
+                        if (userText.toLowerCase().includes('hola')) {
+                            promptForAI = `The user said "${userText}". They correctly said 'Hola'. Praise their progress! Now, let's learn how to say "Good morning" and "Good night". "Good morning" is 'Buenos días' and "Good night" is 'Buenas noches'. Please ask them to say 'Good morning' in Spanish.`;
+                            lessonStage = 1;
+                        } else {
+                            promptForAI = `The user said "${userText}". They made a mistake trying to say 'Hello' in Spanish. Remind them gently that 'Hello' is 'Hola'. Provide the correct spelling and pronunciation hint, and ask them to try saying 'Hola' again. Offer a small encouragement.`;
+                        }
+                        break;
+                    case 1: // Learning "Buenos días" and "Buenas noches"
+                        if (userText.toLowerCase().includes('buenos dias')) {
+                            promptForAI = `The user said "${userText}". They correctly said 'Buenos días'. Excellent! Now, let's learn to ask "How are you?". In Spanish, it's '¿Cómo estás?'. Please ask them '¿Cómo estás?' and guide them to respond with 'Estoy bien' (I am fine).`;
+                            lessonStage = 2;
+                        } else if (userText.toLowerCase().includes('buenas noches')) {
+                            promptForAI = `The user said "${userText}". That's 'Good night'! While correct, we were focusing on 'Buenos días' (Good morning). Could you please try saying 'Buenos días' again?`;
+                        } else {
+                            promptForAI = `The user said "${userText}". They're trying to say 'Good morning' but made a mistake. Remind them that 'Good morning' is 'Buenos días'. Ask them to try again.`;
+                        }
+                        break;
+                    case 2: // Learning "¿Cómo estás?" and "Estoy bien"
+                        if (userText.toLowerCase().includes('estoy bien')) {
+                            promptForAI = `The user said "${userText}". They correctly said 'Estoy bien'. Fantastic! You're making great progress. Now, let's learn to introduce ourselves. To say "My name is [your name]" in Spanish, you say 'Me llamo [your name]'. For example, 'Me llamo Juan'. Please ask the user to introduce themselves, encouraging them to use 'Me llamo'.`;
+                            lessonStage = 3;
+                        } else if (userText.toLowerCase().includes('como estas') || userText.toLowerCase().includes('¿cómo estás?')) {
+                             promptForAI = `The user said "${userText}". You just asked me that! Remember, I asked *you* '¿Cómo estás?'. The correct reply would be 'Estoy bien' (I am fine). Please try responding with 'Estoy bien'.`;
+                        }
+                        else {
+                            promptForAI = `The user said "${userText}". They made a mistake trying to say 'I am fine' in Spanish. Remind them that 'I am fine' is 'Estoy bien' and ask them '¿Cómo estás?' again, prompting for the correct response.`;
+                        }
+                        break;
+                    case 3: // Learning "Me llamo"
+                        if (userText.toLowerCase().includes('me llamo')) {
+                            promptForAI = `The user said "${userText}". They successfully introduced themselves! ¡Excelente! You've learned basic greetings, how to ask and respond to "How are you?", and how to introduce yourself. Would you like to review these lessons, or move on to a new topic like "ordering food" or "asking for directions"?`;
+                            lessonStage = 4; // End of this structured flow
+                        } else {
+                            promptForAI = `The user said "${userText}". They made a mistake trying to introduce themselves. Remind them that "My name is" is 'Me llamo', and encourage them to say "Me llamo [their name]".`;
+                        }
+                        break;
+                    default: // General conversation or review
+                        promptForAI = `The user said "${userText}". You are an AI Language Tutor for Spanish. Continue the conversation naturally in Spanish or English, providing helpful language learning feedback. If they ask for a new topic, suggest "ordering food" or "asking for directions". If they want to review, ask what they'd like to practice.`;
+                        break;
                 }
 
                 // Send the generated prompt to the AI
                 await sendToAI(promptForAI);
             }
 
-            // Event Listeners
+            // --- Event Listeners ---
             sendBtn.addEventListener('click', handleUserInput);
+
             userInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) { // Allow Shift+Enter for new line
-                    e.preventDefault(); // Prevent default new line
+                    e.preventDefault(); // Prevent default new line behavior
                     handleUserInput();
                 }
             });
 
-            // Close button functionality (if you integrate this into a larger app)
+            // Close button functionality
             if (closeTutorBtn) {
                 closeTutorBtn.addEventListener('click', () => {
                     // You might hide the tutor container or navigate away
@@ -463,13 +500,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     </script>
-    // The API key and URL are intentionally left blank for security.
-    // Replace them with your actual keys and endpoints.
-    const apiConfig = {
-        apiKey: "AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA",
-        apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/chat-bison-001:generateMessage?key=AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA";
-    };
-
-  
 </body>
 </html>
