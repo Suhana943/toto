@@ -289,14 +289,180 @@
     </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Elements and State Variables ---
-    const chatDisplay = document.getElementById('chatDisplay');
-    const userInput = document.getElementById('userInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const loadingIndicator = document.getElementById('loadingIndicator');
-    const errorMessage = document.getElementById('errorMessage');
-    const closeTutorBtn = document.querySelector('.close-tutor-btn');
+            const chatDisplay = document.getElementById('chatDisplay');
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const closeTutorBtn = document.querySelector('.close-tutor-btn'); // Assuming a close button exists in your HTML
 
+            // Initial chat history for the AI model
+            // This helps the AI maintain context throughout the conversation.
+            let chatHistory = [
+                { role: "user", parts: [{ text: "Hello, I want to learn Spanish." }] },
+                { role: "model", parts: [{ text: "Hola! I'm your AI Language Tutor. I can help you learn Spanish. Ready to start with some basic greetings?" }] },
+                { role: "user", parts: [{ text: "Yes, I am ready." }] },
+                { role: "model", parts: [{ text: "Great! Let's start with 'Hello' in Spanish. It's 'Hola'. Can you say 'Hola'?" }] }
+            ];
+
+            // Simple state to guide the lesson flow (for hackathon demo purposes)
+            let lessonStage = 0; // 0: Greetings, 1: Asking how are you, 2: Introducing oneself
+
+            // Function to add a message to the chat display
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', ${sender}-message);
+                messageDiv.textContent = text;
+                chatDisplay.appendChild(messageDiv);
+                chatDisplay.scrollTop = chatDisplay.scrollHeight; // Auto-scroll to bottom
+            }
+
+            // Function to speak text using Web Speech API
+            function speakText(text) {
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'es-ES'; // Set language to Spanish for AI responses
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    console.warn("Speech Synthesis not supported in this browser.");
+                }
+            }
+
+            // Function to send message to AI and get response
+            async function sendToAI(userMessage) {
+                errorMessage.style.display = 'none'; // Hide any previous errors
+                loadingIndicator.style.display = 'flex'; // Show loading indicator
+
+                // Add user message to chat history
+                chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
+
+                try {
+                    const payload = { contents: chatHistory };
+                    // IMPORTANT: Leave apiKey as an empty string. Canvas will automatically provide it.
+                    const apiKey = "AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA";
+                     // Replace them with your actual keys and endpoints.
+ 
+        
+        const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/chat-bison-001:generateMessage?key=AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA";
+    
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(API error: ${response.status} - ${errorData.error.message || 'Unknown error'});
+                    }
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const aiResponse = result.candidates[0].content.parts[0].text;
+                        addMessage(aiResponse, 'bot');
+                        speakText(aiResponse);
+                        chatHistory.push({ role: "model", parts: [{ text: aiResponse }] });
+                        return aiResponse; // Return AI response for further processing if needed
+                    } else {
+                        const noResponseMsg = 'The AI did not generate a response. Please try rephrasing your question.';
+                        addMessage(noResponseMsg, 'bot');
+                        speakText(noResponseMsg);
+                        chatHistory.push({ role: "model", parts: [{ text: noResponseMsg }] });
+                        return noResponseMsg;
+                    }
+
+                } catch (error) {
+                    console.error('Error sending message to AI:', error);
+                    const errorMsg = Sorry, I encountered an error: ${error.message}. Please try again.;
+                    errorMessage.textContent = errorMsg;
+                    errorMessage.style.display = 'block';
+                    addMessage(errorMsg, 'bot');
+                    speakText(errorMsg);
+                    return errorMsg;
+                } finally {
+                    loadingIndicator.style.display = 'none'; // Hide loading indicator
+                }
+            }
+
+            // Function to handle user input and trigger AI response
+            async function handleUserInput() {
+                const userText = userInput.value.trim();
+                if (userText === "") {
+                    return; // Don't send empty messages
+                }
+
+                addMessage(userText, 'user');
+                userInput.value = ''; // Clear input field
+
+                // Simple adaptive logic based on lessonStage and user input
+                let promptForAI = "";
+
+                if (lessonStage === 0) { // Greetings lesson
+                    if (userText.toLowerCase().includes('hola')) {
+                        promptForAI = The user said "${userText}". They correctly said 'Hola'. Praise them and then introduce 'Buenos días' (Good morning) and 'Buenas noches' (Good night). Ask them to say 'Good morning' in Spanish.;
+                        lessonStage = 1;
+                    } else {
+                        promptForAI = The user said "${userText}". They made a mistake trying to say 'Hello' in Spanish. Remind them that 'Hello' is 'Hola' and ask them to try again.;
+                    }
+                } else if (lessonStage === 1) { // Buenos días/Buenas noches lesson
+                    if (userText.toLowerCase().includes('c')) {
+                        promptForAI = The user said "${userText}". They correctly said 'Buenos días'. Praise them and then introduce '¿Cómo estás?' (How are you?) and 'Estoy bien' (I am fine). Ask them '¿Cómo estás?' and expect 'Estoy bien' as a response.;
+                        lessonStage = 2;
+                    } else if (userText.toLowerCase().includes('buenas noches')) {
+                         promptForAI = The user said "${userText}". They said 'Buenas noches'. Correct them gently that we were practicing 'Buenos días' and ask them to try 'Buenos días' again.;
+                    }
+                    else {
+                        promptForAI = The user said "${userText}". They made a mistake trying to say 'Good morning' in Spanish. Remind them that 'Good morning' is 'Buenos días' and ask them to try again.;
+                    }
+                } else if (lessonStage === 2) { // ¿Cómo estás? / Estoy bien lesson
+                    if (userText.toLowerCase().includes('estoy bien')) {
+                        promptForAI = The user said "${userText}". They correctly said 'Estoy bien'. Praise them and suggest we move on to introductions. Ask them to say "My name is [their name]" in Spanish. Give them a hint: "My name is" is "Me llamo".;
+                        lessonStage = 3;
+                    } else {
+                        promptForAI = The user said "${userText}". They made a mistake trying to say 'I am fine' in Spanish. Remind them that 'I am fine' is 'Estoy bien' and ask them '¿Cómo estás?' again.;
+                    }
+                } else if (lessonStage === 3) { // Me llamo lesson
+                    if (userText.toLowerCase().includes('me llamo')) {
+                        promptForAI = The user said "${userText}". They correctly introduced themselves. Praise them for their progress. Offer to review previous lessons or introduce a new topic like "ordering food".;
+                        lessonStage = 4; // End of this simple flow
+                    } else {
+                        promptForAI = The user said "${userText}". They made a mistake trying to introduce themselves. Remind them that "My name is" is "Me llamo" and ask them to try again.;
+                    }
+                }
+                else { // General conversation or review
+                    promptForAI = The user said "${userText}". Continue the conversation naturally in Spanish or English, providing helpful language learning feedback. If they ask for a new topic, suggest "ordering food" or "asking for directions".;
+                }
+
+                // Send the generated prompt to the AI
+                await sendToAI(promptForAI);
+            }
+
+            // Event Listeners
+            sendBtn.addEventListener('click', handleUserInput);
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { // Allow Shift+Enter for new line
+                    e.preventDefault(); // Prevent default new line
+                    handleUserInput();
+                }
+            });
+
+            // Close button functionality (if you integrate this into a larger app)
+            if (closeTutorBtn) {
+                closeTutorBtn.addEventListener('click', () => {
+                    // You might hide the tutor container or navigate away
+                    document.querySelector('.language-tutor-container').style.display = 'none';
+                    // Optionally, stop speech synthesis when closing
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                    }
+                });
+            }
+        });
+    </script>
     // The API key and URL are intentionally left blank for security.
     // Replace them with your actual keys and endpoints.
     const apiConfig = {
@@ -304,165 +470,6 @@ document.addEventListener('DOMContentLoaded', () => {
         apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/chat-bison-001:generateMessage?key=AIzaSyCBSJI95ouerTIu0gDmwnNPApN3lKqamiA";
     };
 
-    let chatHistory = [
-        { role: "user", parts: [{ text: "Hello, I want to learn Spanish." }] },
-        { role: "model", parts: [{ text: "Hola! I'm your AI Language Tutor. I can help you learn Spanish. Ready to start with some basic greetings?" }] },
-        { role: "user", parts: [{ text: "Yes, I am ready." }] },
-        { role: "model", parts: [{ text: "Great! Let's start with 'Hello' in Spanish. It's 'Hola'. Can you say 'Hola'?" }] }
-    ];
-
-    let lessonStage = 0; // 0: Greetings, 1: Good Morning/Night, 2: How are you, 3: Introductions
-
-    // --- Core Functions ---
-
-    /**
-     * Adds a message to the chat display and auto-scrolls to the bottom.
-     * @param {string} text - The message text.
-     * @param {string} sender - 'user' or 'bot'.
-     */
-    function addMessage(text, sender) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', ${sender}-message);
-        messageDiv.textContent = text;
-        chatDisplay.appendChild(messageDiv);
-        chatDisplay.scrollTop = chatDisplay.scrollHeight;
-    }
-
-    /**
-     * Uses the Web Speech API to vocalize text.
-     * @param {string} text - The text to speak.
-     */
-    function speakText(text) {
-        if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'es-ES';
-            window.speechSynthesis.speak(utterance);
-        } else {
-            console.warn("Speech Synthesis not supported in this browser.");
-        }
-    }
-
-    /**
-     * Sends a prompt to the AI and processes the response.
-     * @param {string} userMessage - The message to send to the AI.
-     */
-    async function sendToAI(userMessage) {
-        errorMessage.style.display = 'none';
-        loadingIndicator.style.display = 'flex';
-
-        chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
-
-        try {
-            const payload = { contents: chatHistory };
-            const response = await fetch(apiConfig.apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(API error: ${response.status} - ${errorData.error.message || 'Unknown error'});
-            }
-
-            const result = await response.json();
-
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const aiResponse = result.candidates[0].content.parts[0].text;
-                addMessage(aiResponse, 'bot');
-                speakText(aiResponse);
-                chatHistory.push({ role: "model", parts: [{ text: aiResponse }] });
-            } else {
-                const noResponseMsg = 'The AI did not generate a response. Please try rephrasing.';
-                addMessage(noResponseMsg, 'bot');
-                speakText(noResponseMsg);
-                chatHistory.push({ role: "model", parts: [{ text: noResponseMsg }] });
-            }
-
-        } catch (error) {
-            console.error('Error sending message to AI:', error);
-            const errorMsg = Sorry, I encountered an error: ${error.message}. Please try again.;
-            errorMessage.textContent = errorMsg;
-            errorMessage.style.display = 'block';
-            addMessage(errorMsg, 'bot');
-            speakText(errorMsg);
-        } finally {
-            loadingIndicator.style.display = 'none';
-        }
-    }
-
-    /**
-     * Handles user input, determines the lesson stage, and sends a prompt to the AI.
-     */
-    async function handleUserInput() {
-        const userText = userInput.value.trim();
-        if (userText === "") return;
-
-        addMessage(userText, 'user');
-        userInput.value = '';
-
-        let promptForAI = "";
-
-        // --- Simple adaptive lesson logic based on lessonStage ---
-        if (lessonStage === 0) {
-            if (userText.toLowerCase().includes('hola')) {
-                promptForAI = The user said "${userText}". They correctly said 'Hola'. Praise them and introduce 'Buenos días' and 'Buenas noches'. Ask them to say 'Good morning' in Spanish.;
-                lessonStage = 1;
-            } else {
-                promptForAI = The user said "${userText}". Remind them that 'Hello' is 'Hola' and ask them to try again.;
-            }
-        } else if (lessonStage === 1) {
-            if (userText.toLowerCase().includes('buenos d')) {
-                promptForAI = The user said "${userText}". They correctly said 'Buenos días'. Praise them and introduce '¿Cómo estás?' (How are you?) and 'Estoy bien' (I am fine). Ask them '¿Cómo estás?'.;
-                lessonStage = 2;
-            } else if (userText.toLowerCase().includes('buenas noches')) {
-                promptForAI = The user said "${userText}". They said 'Buenas noches'. Gently correct them that we were practicing 'Buenos días' and ask them to try 'Buenos días' again.;
-            } else {
-                promptForAI = The user said "${userText}". Remind them that 'Good morning' is 'Buenos días' and ask them to try again.;
-            }
-        } else if (lessonStage === 2) {
-            if (userText.toLowerCase().includes('estoy bien')) {
-                promptForAI = The user said "${userText}". They correctly said 'Estoy bien'. Praise them and suggest we move on to introductions. Ask them to say "My name is [their name]" in Spanish, and provide the hint: "Me llamo".;
-                lessonStage = 3;
-            } else {
-                promptForAI = The user said "${userText}". Remind them that 'I am fine' is 'Estoy bien' and ask them '¿Cómo estás?' again.;
-            }
-        } else if (lessonStage === 3) {
-            if (userText.toLowerCase().includes('me llamo')) {
-                promptForAI = The user said "${userText}". They correctly introduced themselves. Praise them for their progress. Offer to review previous lessons or introduce a new topic like "ordering food".;
-                lessonStage = 4;
-            } else {
-                promptForAI = The user said "${userText}". Remind them that "My name is" is "Me llamo" and ask them to try again.;
-            }
-        } else {
-            promptForAI = The user said "${userText}". Continue the conversation naturally in Spanish or English, providing helpful language learning feedback. If they ask for a new topic, suggest "ordering food" or "asking for directions".;
-        }
-        
-        await sendToAI(promptForAI);
-    }
-
-    // --- Event Listeners ---
-    sendBtn.addEventListener('click', handleUserInput);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleUserInput();
-        }
-    });
-
-    if (closeTutorBtn) {
-        closeTutorBtn.addEventListener('click', () => {
-            const container = document.querySelector('.language-tutor-container');
-            if (container) {
-                container.style.display = 'none';
-            }
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-            }
-        });
-    }
-});</script>
+  
 </body>
 </html>
