@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Language Tutor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Base Styles & Variables (re-using from your Educom CSS for consistency) */
+        :root {
+            --primary-blue: #1691fd;
+            --secondary-yellow: #ebab0c;
+            --light-blue-bg: #d9eff8;
+            --text-dark: #333;
+            --text-light: #fff;
+            --gray-text: #555;
+            --border-radius-md: 20px;
+            --border-radius-lg: 40px;
+            --transition-speed: 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Poppins", sans-serif;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background-color: #f0f8ff; /* Light background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .language-tutor-container {
+            background-color: var(--text-light);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            max-width: 700px;
+            width: 100%;
+            height: 700px; /* Fixed height for the tutor window */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative; /* For loading indicator positioning */
+        }
+
+        .tutor-header {
+            background-color: var(--primary-blue);
+            color: var(--text-light);
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.3rem;
+            font-weight: 600;
+            border-top-left-radius: var(--border-radius-lg);
+            border-top-right-radius: var(--border-radius-lg);
+        }
+
+        .tutor-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tutor-header .fas {
+            font-size: 1.1em;
+        }
+
+        .close-tutor-btn {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .close-tutor-btn:hover {
+            transform: rotate(90deg);
+        }
+
+        .chat-display {
+            flex-grow: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            font-size: 1rem;
+            background-color: #fcfdff;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            padding: 15px 20px;
+            border-radius: 25px;
+            max-width: 80%;
+            line-height: 1.5;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .bot-message {
+            background-color: var(--light-blue-bg);
+            align-self: flex-start;
+            border-bottom-left-radius: 8px;
+            color: var(--text-dark);
+        }
+
+        .user-message {
+            background-color: var(--primary-blue);
+            color: var(--text-light);
+            align-self: flex-end;
+            border-bottom-right-radius: 8px;
+        }
+
+        .tutor-input {
+            display: flex;
+            padding: 20px 25px;
+            border-top: 1px solid #e0e0e0;
+            background-color: var(--text-light);
+            gap: 15px;
+        }
+
+        .tutor-input textarea {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius-md);
+            padding: 12px 18px;
+            font-family: "Poppins", sans-serif;
+            font-size: 1rem;
+            min-height: 50px;
+            max-height: 120px; /* Prevent it from getting too tall */
+            resize: vertical;
+            outline: none;
+            transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+        }
+
+        .tutor-input textarea:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(22, 145, 253, 0.2);
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border-radius: var(--border-radius-md);
+            border: none;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            background-color: var(--secondary-yellow);
+            color: var(--text-light);
+            transition: all var(--transition-speed);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background-color: #d89e0b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-indicator {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+            color: var(--primary-blue);
+            z-index: 10;
+        }
+
+        .loading-indicator i {
+            margin-right: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            color: #dc3545; /* Red for errors */
+            margin-top: 15px;
+            font-weight: 500;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .language-tutor-container {
+                width: 95%;
+                height: 90vh; /* Adjust height for smaller screens */
+                border-radius: var(--border-radius-md);
+            }
+            .tutor-header {
+                font-size: 1.1rem;
+                padding: 15px 20px;
+                border-top-left-radius: var(--border-radius-md);
+                border-top-right-radius: var(--border-radius-md);
+            }
+            .close-tutor-btn {
+                font-size: 1.2rem;
+            }
+            .chat-display {
+                padding: 15px;
+                gap: 10px;
+            }
+            .message {
+                padding: 12px 15px;
+                font-size: 0.9rem;
+            }
+            .tutor-input {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .tutor-input textarea {
+                min-height: 40px;
+                max-height: 80px;
+            }
+            .btn {
+                width: 100%;
+                padding: 10px 15px;
+            }
+            .loading-indicator {
+                padding: 15px 20px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .language-tutor-container {
+                height: 95vh;
+            }
+            .tutor-header {
+                font-size: 1rem;
+            }
+            .chat-display {
+                font-size: 0.85rem;
+            }
+            .message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="language-tutor-container">
+        <div class="tutor-header">
+            <h3><i class="fas fa-language"></i> AI Language Tutor</h3>
+            <button class="close-tutor-btn" aria-label="Close tutor"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="chat-display" id="chatDisplay">
+            <!-- Initial messages from the bot -->
+            <div class="message bot-message">Hola! I'm your AI Language Tutor. I can help you learn Spanish. Ready to start with some basic greetings?</div>
+            <div class="message bot-message">Try saying "Hello" in Spanish!</div>
+        </div>
+        <div class="tutor-input">
+            <textarea id="userInput" placeholder="Type your answer or question here..." rows="1"></textarea>
+            <button id="sendBtn" class="btn"><i class="fas fa-paper-plane"></i> Send</button>
+        </div>
+
+        <div id="loadingIndicator" class="loading-indicator">
+            <i class="fas fa-spinner"></i> AI is thinking...
+        </div>
+        <p id="errorMessage" class="error-message" style="display: none;"></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatDisplay = document.getElementById('chatDisplay');
+            const userInput = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessage = document.getElementById('errorMessage');
+            const closeTutorBtn = document.querySelector('.close-tutor-btn'); // Assuming a close button exists in your HTML
+
+            // Initial chat history for the AI model
+            // This helps the AI maintain context throughout the conversation.
+            let chatHistory = [
+                { role: "user", parts: [{ text: "Hello, I want to learn Spanish." }] },
+                { role: "model", parts: [{ text: "Hola! I'm your AI Language Tutor. I can help you learn Spanish. Ready to start with some basic greetings?" }] },
+                { role: "user", parts: [{ text: "Yes, I am ready." }] },
+                { role: "model", parts: [{ text: "Great! Let's start with 'Hello' in Spanish. It's 'Hola'. Can you say 'Hola'?" }] }
+            ];
+
+            // Simple state to guide the lesson flow (for hackathon demo purposes)
+            let lessonStage = 0; // 0: Greetings, 1: Asking how are you, 2: Introducing oneself
+
+            // Function to add a message to the chat display
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', `${sender}-message`);
+                messageDiv.textContent = text;
+                chatDisplay.appendChild(messageDiv);
+                chatDisplay.scrollTop = chatDisplay.scrollHeight; // Auto-scroll to bottom
+            }
+
+            // Function to speak text using Web Speech API
+            function speakText(text) {
+                if ('speechSynthesis' in window) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'es-ES'; // Set language to Spanish for AI responses
+                    window.speechSynthesis.speak(utterance);
+                } else {
+                    console.warn("Speech Synthesis not supported in this browser.");
+                }
+            }
+
+            // Function to send message to AI and get response
+            async function sendToAI(userMessage) {
+                errorMessage.style.display = 'none'; // Hide any previous errors
+                loadingIndicator.style.display = 'flex'; // Show loading indicator
+
+                // Add user message to chat history
+                chatHistory.push({ role: "user", parts: [{ text: userMessage }] });
+
+                try {
+                    const payload = { contents: chatHistory };
+                    // IMPORTANT: Leave apiKey as an empty string. Canvas will automatically provide it.
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API error: ${response.status} - ${errorData.error.message || 'Unknown error'}`);
+                    }
+
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const aiResponse = result.candidates[0].content.parts[0].text;
+                        addMessage(aiResponse, 'bot');
+                        speakText(aiResponse);
+                        chatHistory.push({ role: "model", parts: [{ text: aiResponse }] });
+                        return aiResponse; // Return AI response for further processing if needed
+                    } else {
+                        const noResponseMsg = 'The AI did not generate a response. Please try rephrasing your question.';
+                        addMessage(noResponseMsg, 'bot');
+                        speakText(noResponseMsg);
+                        chatHistory.push({ role: "model", parts: [{ text: noResponseMsg }] });
+                        return noResponseMsg;
+                    }
+
+                } catch (error) {
+                    console.error('Error sending message to AI:', error);
+                    const errorMsg = `Sorry, I encountered an error: ${error.message}. Please try again.`;
+                    errorMessage.textContent = errorMsg;
+                    errorMessage.style.display = 'block';
+                    addMessage(errorMsg, 'bot');
+                    speakText(errorMsg);
+                    return errorMsg;
+                } finally {
+                    loadingIndicator.style.display = 'none'; // Hide loading indicator
+                }
+            }
+
+            // Function to handle user input and trigger AI response
+            async function handleUserInput() {
+                const userText = userInput.value.trim();
+                if (userText === "") {
+                    return; // Don't send empty messages
+                }
+
+                addMessage(userText, 'user');
+                userInput.value = ''; // Clear input field
+
+                // Simple adaptive logic based on lessonStage and user input
+                let promptForAI = "";
+
+                if (lessonStage === 0) { // Greetings lesson
+                    if (userText.toLowerCase().includes('hola')) {
+                        promptForAI = `The user said "${userText}". They correctly said 'Hola'. Praise them and then introduce 'Buenos días' (Good morning) and 'Buenas noches' (Good night). Ask them to say 'Good morning' in Spanish.`;
+                        lessonStage = 1;
+                    } else {
+                        promptForAI = `The user said "${userText}". They made a mistake trying to say 'Hello' in Spanish. Remind them that 'Hello' is 'Hola' and ask them to try again.`;
+                    }
+                } else if (lessonStage === 1) { // Buenos días/Buenas noches lesson
+                    if (userText.toLowerCase().includes('buenos días')) {
+                        promptForAI = `The user said "${userText}". They correctly said 'Buenos días'. Praise them and then introduce '¿Cómo estás?' (How are you?) and 'Estoy bien' (I am fine). Ask them '¿Cómo estás?' and expect 'Estoy bien' as a response.`;
+                        lessonStage = 2;
+                    } else if (userText.toLowerCase().includes('buenas noches')) {
+                         promptForAI = `The user said "${userText}". They said 'Buenas noches'. Correct them gently that we were practicing 'Buenos días' and ask them to try 'Buenos días' again.`;
+                    }
+                    else {
+                        promptForAI = `The user said "${userText}". They made a mistake trying to say 'Good morning' in Spanish. Remind them that 'Good morning' is 'Buenos días' and ask them to try again.`;
+                    }
+                } else if (lessonStage === 2) { // ¿Cómo estás? / Estoy bien lesson
+                    if (userText.toLowerCase().includes('estoy bien')) {
+                        promptForAI = `The user said "${userText}". They correctly said 'Estoy bien'. Praise them and suggest we move on to introductions. Ask them to say "My name is [their name]" in Spanish. Give them a hint: "My name is" is "Me llamo".`;
+                        lessonStage = 3;
+                    } else {
+                        promptForAI = `The user said "${userText}". They made a mistake trying to say 'I am fine' in Spanish. Remind them that 'I am fine' is 'Estoy bien' and ask them '¿Cómo estás?' again.`;
+                    }
+                } else if (lessonStage === 3) { // Me llamo lesson
+                    if (userText.toLowerCase().includes('me llamo')) {
+                        promptForAI = `The user said "${userText}". They correctly introduced themselves. Praise them for their progress. Offer to review previous lessons or introduce a new topic like "ordering food".`;
+                        lessonStage = 4; // End of this simple flow
+                    } else {
+                        promptForAI = `The user said "${userText}". They made a mistake trying to introduce themselves. Remind them that "My name is" is "Me llamo" and ask them to try again.`;
+                    }
+                }
+                else { // General conversation or review
+                    promptForAI = `The user said "${userText}". Continue the conversation naturally in Spanish or English, providing helpful language learning feedback. If they ask for a new topic, suggest "ordering food" or "asking for directions".`;
+                }
+
+                // Send the generated prompt to the AI
+                await sendToAI(promptForAI);
+            }
+
+            // Event Listeners
+            sendBtn.addEventListener('click', handleUserInput);
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { // Allow Shift+Enter for new line
+                    e.preventDefault(); // Prevent default new line
+                    handleUserInput();
+                }
+            });
+
+            // Close button functionality (if you integrate this into a larger app)
+            if (closeTutorBtn) {
+                closeTutorBtn.addEventListener('click', () => {
+                    // You might hide the tutor container or navigate away
+                    document.querySelector('.language-tutor-container').style.display = 'none';
+                    // Optionally, stop speech synthesis when closing
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
