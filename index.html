@@ -247,23 +247,79 @@
             }
         }
 
-        @media (max-width: 480px) {
-            body {
-                padding: 10px;
-            }
-            .language-tutor-container {
-                height: 95vh;
-            }
-            .tutor-header {
-                font-size: 1rem;
-            }
-            .chat-display {
-                font-size: 0.85rem;
-            }
-            .message {
-                max-width: 90%;
-            }
+      
+        /* ... (rest of your CSS remains the same) ... */
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .language-tutor-container {
+            width: 95%;
+            height: 90vh; /* Adjust height for smaller screens */
+            border-radius: var(--border-radius-md);
         }
+        .tutor-header {
+            font-size: 1.1rem;
+            padding: 15px 20px;
+            border-top-left-radius: var(--border-radius-md);
+            border-top-right-radius: var(--border-radius-md);
+        }
+        .close-tutor-btn {
+            font-size: 1.2rem;
+        }
+        .chat-display {
+            padding: 15px;
+            gap: 10px;
+        }
+        .message {
+            padding: 12px 15px;
+            font-size: 0.9rem;
+        }
+        .tutor-input {
+            padding: 15px 20px;
+            /* REMOVE OR COMMENT OUT THIS LINE: flex-direction: column; */
+            gap: 10px; /* You can keep the gap for spacing */
+            /* You might also want to adjust alignment if you remove column direction */
+            align-items: center; /* Ensures vertical alignment if they are different heights */
+        }
+        .tutor-input textarea {
+            min-height: 40px;
+            max-height: 80px;
+            flex-grow: 1; /* Ensure textarea still takes available space */
+        }
+        .btn {
+            /* REMOVE OR COMMENT OUT THIS LINE: width: 100%; */
+            padding: 10px 15px;
+            /* You might want to set a fixed width or max-width for the button if it gets too wide */
+            flex-shrink: 0; /* Prevents button from shrinking too much */
+        }
+        .loading-indicator {
+            padding: 15px 20px;
+            font-size: 0.9rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        body {
+            padding: 10px;
+        }
+        .language-tutor-container {
+            height: 95vh;
+        }
+        .tutor-header {
+            font-size: 1rem;
+        }
+        .chat-display {
+            font-size: 0.85rem;
+        }
+        .message {
+            max-width: 90%;
+        }
+        /* Ensure the input and button behavior is consistent here too */
+        .tutor-input {
+            /* If you remove flex-direction: column; from 768px, it applies here too */
+            /* If you want different behavior for 480px, you can re-add it here */
+        }
+    }
     </style>
 </head>
 <body>
